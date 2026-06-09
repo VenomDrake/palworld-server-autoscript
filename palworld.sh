@@ -16,6 +16,8 @@ var_version="${var_version:-22.04}"
 var_arm64="${var_arm64:-no}"
 var_unprivileged="${var_unprivileged:-1}"
 var_hostname="${var_hostname:-palworld}"
+PWSERVER_PASSWORD=""
+PWSERVER_PASSWORD_GENERATED="0"
 
 # Local visual identity overrides. build.func remains the technical framework;
 # this wrapper only rewrites visible whiptail branding strings at runtime.
@@ -50,10 +52,45 @@ header_info() {
 HEADER
 }
 
+generate_pwserver_password() {
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -base64 32 | tr -d '/+=[:space:]' | cut -c1-24
+    return 0
+  fi
+
+  LC_ALL=C tr -dc 'A-Za-z0-9_@%.,-' </dev/urandom | head -c 24
+}
+
+prompt_pwserver_password() {
+  local password=""
+
+  if type -P whiptail >/dev/null 2>&1; then
+    password=$(whiptail --title "Palworld User Password" --passwordbox 'Set password for LinuxGSM user "pwserver". Leave blank to generate a secure random password.' 10 78 3>&1 1>&2 2>&3) || exit 1
+  else
+    read -r -s -p 'Set password for LinuxGSM user "pwserver". Leave blank to generate a secure random password: ' password
+    printf '\n'
+  fi
+
+  if [[ -z "$password" ]]; then
+    PWSERVER_PASSWORD="$(generate_pwserver_password)"
+    PWSERVER_PASSWORD_GENERATED="1"
+  else
+    PWSERVER_PASSWORD="$password"
+    PWSERVER_PASSWORD_GENERATED="0"
+  fi
+}
+
+set_pwserver_password() {
+  msg_info "Setting pwserver Password"
+  printf '%s\n' "$PWSERVER_PASSWORD" | pct exec "$CTID" -- bash -c 'IFS= read -r password; printf "%s:%s\n" "pwserver" "$password" | chpasswd'
+  msg_ok "Set pwserver Password"
+}
+
 header_info "$APP"
 variables
 color
 catch_errors
+prompt_pwserver_password
 
 # Build a standard Ubuntu LXC with the Community Scripts installer, then run the
 # Palworld/LinuxGSM provisioning steps from the Proxmox host with pct exec.
@@ -125,6 +162,7 @@ apt-get install -y \
   lib32gcc-s1 \
   lib32stdc++6 \
   libsdl2-2.0-0:i386 \
+  netcat-openbsd \
   pigz \
   python3 \
   sudo \
@@ -137,6 +175,10 @@ apt-get install -y \
   xz-utils
 
 apt-get install -y netcat-openbsd || apt-get install -y netcat-traditional
+if apt-cache show netcat >/dev/null 2>&1; then
+  apt-get install -y netcat || true
+fi
+command -v nc >/dev/null
 
 if apt-cache show steamcmd >/dev/null 2>&1; then
   printf 'steam steam/question select I AGREE\nsteam steam/license note \n' | debconf-set-selections || true
@@ -198,6 +240,7 @@ rm -f /tmp/pwserver.cron
 systemctl start cron
 systemctl start pwserver.service
 CT_SCRIPT
+  set_pwserver_password
   msg_ok "Installed ${APP} Dedicated Server with LinuxGSM"
 }
 
@@ -210,6 +253,12 @@ print_completion() {
   msg_ok "Completed Successfully!\n"
   echo -e "${CREATING}${GN}${APP} Dedicated Server is ready.${CL}"
   echo -e "${INFO}${YW} Container IP:${CL} ${BGN}${IP:-Unknown}${CL}"
+  echo -e "${INFO}${YW} Root password:${CL} ${BGN}set during the installer wizard${CL}"
+  if [[ "$PWSERVER_PASSWORD_GENERATED" == "1" ]]; then
+    echo -e "${INFO}${YW} pwserver password:${CL} ${BGN}generated: ${PWSERVER_PASSWORD}${CL}"
+  else
+    echo -e "${INFO}${YW} pwserver password:${CL} ${BGN}user provided${CL}"
+  fi
   echo -e "${INFO}${YW} LinuxGSM path:${CL} ${BGN}/home/pwserver${CL}"
   echo -e "${INFO}${YW} Palworld config:${CL} ${BGN}/home/pwserver/serverfiles/Pal/Saved/Config/LinuxServer/PalWorldSettings.ini${CL}"
   echo -e "${INFO}${YW} LinuxGSM logs:${CL} ${BGN}/home/pwserver/log${CL}"

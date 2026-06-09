@@ -73,6 +73,25 @@ Note:
 - `25575/tcp` è da aprire solo se abiliti RCON nella configurazione Palworld.
 - Dopo l'installazione, verifica sempre le porte reali con `./pwserver details`.
 
+## Password e accessi
+
+Durante l'installazione vengono gestite due password diverse:
+
+- **root password**: è la password dell'utente `root` del container LXC. Viene gestita dal wizard standard basato su Community Scripts e non viene modificata dallo script Palworld.
+- **pwserver password**: è la password dell'utente Linux dedicato `pwserver`, usato per gestire LinuxGSM e Palworld. Lo script Palworld la richiede con una schermata dedicata; se lasci il campo vuoto, viene generata automaticamente una password sicura e mostrata solo nel riepilogo finale.
+
+Per accedere all'utente LinuxGSM dopo l'installazione:
+
+```bash
+su - pwserver
+```
+
+Per verificare lo stato del servizio Palworld:
+
+```bash
+systemctl status pwserver
+```
+
 ## Percorsi principali
 
 | Scopo | Percorso |
