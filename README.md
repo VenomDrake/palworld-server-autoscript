@@ -23,6 +23,10 @@ In particolare:
 
 LinuxGSM gestisce Palworld tramite il comando/server script `pwserver`. L'AppID Steam del Palworld Dedicated Server è `2394010`.
 
+## Identità visuale e framework
+
+Questo progetto mantiene una propria identità visuale nel wizard: **Palworld Server Autoscript**. Le schermate iniziali e le opzioni visibili vengono personalizzate localmente dallo script, mentre `build.func` dei Community Scripts resta usato solo come framework tecnico per la creazione del container LXC.
+
 ## Installazione
 
 Esegui questo comando nella shell del nodo Proxmox VE:
