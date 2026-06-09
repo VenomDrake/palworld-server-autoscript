@@ -1,0 +1,15 @@
+# Shell/editor artifacts
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs and temporary files
+*.log
+tmp/
+.temp/
+
+# Local environment overrides
+.env
+.env.*
+!.env.example
