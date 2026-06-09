@@ -17,6 +17,39 @@ var_arm64="${var_arm64:-no}"
 var_unprivileged="${var_unprivileged:-1}"
 var_hostname="${var_hostname:-palworld}"
 
+# Local visual identity overrides. build.func remains the technical framework;
+# this wrapper only rewrites visible whiptail branding strings at runtime.
+whiptail() {
+  local rewritten=()
+  local arg
+
+  for arg in "$@"; do
+    arg="${arg//Proxmox VE Helper Scripts/Palworld Server Autoscript}"
+    arg="${arg//Community-Scripts Options/Palworld Installer Options}"
+    rewritten+=("$arg")
+  done
+
+  command whiptail "${rewritten[@]}"
+}
+
+header_info() {
+  if command -v clear >/dev/null 2>&1; then
+    clear 2>/dev/null || true
+  fi
+  cat <<'HEADER'
+  ____   _    _     __        _____  ____  _     ____
+ |  _ \ / \  | |    \ \      / / _ \|  _ \| |   |  _ \
+ | |_) / _ \ | |     \ \ /\ / / | | | |_) | |   | | | |
+ |  __/ ___ \| |___   \ V  V /| |_| |  _ <| |___| |_| |
+ |_| /_/   \_\_____|   \_/\_/  \___/|_| \_\_____|____/
+
+             PALWORLD
+        LinuxGSM LXC Installer
+
+        Palworld Server Autoscript
+HEADER
+}
+
 header_info "$APP"
 variables
 color
