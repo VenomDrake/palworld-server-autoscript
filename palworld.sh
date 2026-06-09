@@ -18,6 +18,7 @@ var_unprivileged="${var_unprivileged:-1}"
 var_hostname="${var_hostname:-palworld}"
 PWSERVER_PASSWORD=""
 PWSERVER_PASSWORD_GENERATED="0"
+PALWORLD_SERVER_NAME="Palworld Server"
 
 # Local visual identity overrides. build.func remains the technical framework;
 # this wrapper only rewrites visible whiptail branding strings at runtime.
@@ -86,11 +87,28 @@ set_pwserver_password() {
   msg_ok "Set pwserver Password"
 }
 
+prompt_palworld_server_name() {
+  local server_name="Palworld Server"
+
+  if type -P whiptail >/dev/null 2>&1; then
+    server_name=$(whiptail --title "Palworld Server Name" --inputbox "Set the public Palworld server name." 10 78 "Palworld Server" 3>&1 1>&2 2>&3) || exit 1
+  else
+    read -r -p 'Set the public Palworld server name [Palworld Server]: ' server_name
+  fi
+
+  if [[ -z "$server_name" ]]; then
+    server_name="Palworld Server"
+  fi
+
+  PALWORLD_SERVER_NAME="$server_name"
+}
+
 header_info "$APP"
 variables
 color
 catch_errors
 prompt_pwserver_password
+prompt_palworld_server_name
 
 # Build a standard Ubuntu LXC with the Community Scripts installer, then run the
 # Palworld/LinuxGSM provisioning steps from the Proxmox host with pct exec.
@@ -133,11 +151,15 @@ run_in_container() {
 }
 
 install_palworld() {
+  local server_name_b64
+
   ensure_container_running
+  server_name_b64="$(printf '%s' "$PALWORLD_SERVER_NAME" | base64 | tr -d '\n')"
   msg_info "Installing ${APP} Dedicated Server with LinuxGSM"
-  run_in_container <<'CT_SCRIPT'
+  run_in_container "$server_name_b64" <<'CT_SCRIPT'
 set -Ee -o pipefail
 export DEBIAN_FRONTEND=noninteractive
+server_name="$(printf '%s' "$1" | base64 -d)"
 
 apt-get update
 apt-get install -y software-properties-common ca-certificates gnupg curl wget sudo debconf cron
@@ -202,6 +224,18 @@ if [[ -f /home/pwserver/serverfiles/DefaultPalWorldSettings.ini && ! -s /home/pw
     /home/pwserver/serverfiles/Pal/Saved/Config/LinuxServer/PalWorldSettings.ini
 fi
 
+install -d -o pwserver -g pwserver /home/pwserver/lgsm/config-lgsm/pwserver
+tmp_cfg="$(mktemp)"
+if [[ -f /home/pwserver/lgsm/config-lgsm/pwserver/pwserver.cfg ]]; then
+  grep -Ev '^(servername|startparameters)=' /home/pwserver/lgsm/config-lgsm/pwserver/pwserver.cfg >"${tmp_cfg}" || true
+fi
+printf 'servername=%q\n' "${server_name}" >>"${tmp_cfg}"
+cat >>"${tmp_cfg}" <<'LGSMCFG'
+startparameters="-publiclobby -useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS -servername='${servername}' -port='${port}' -queryport='${steamport}'"
+LGSMCFG
+install -o pwserver -g pwserver -m 0644 "${tmp_cfg}" /home/pwserver/lgsm/config-lgsm/pwserver/pwserver.cfg
+rm -f "${tmp_cfg}"
+
 cat >/etc/systemd/system/pwserver.service <<'SERVICE'
 [Unit]
 Description=Palworld Dedicated Server managed by LinuxGSM
@@ -253,6 +287,7 @@ print_completion() {
   msg_ok "Completed Successfully!\n"
   echo -e "${CREATING}${GN}${APP} Dedicated Server is ready.${CL}"
   echo -e "${INFO}${YW} Container IP:${CL} ${BGN}${IP:-Unknown}${CL}"
+  echo -e "${INFO}${YW} Palworld server name:${CL} ${BGN}${PALWORLD_SERVER_NAME}${CL}"
   echo -e "${INFO}${YW} Root password:${CL} ${BGN}set during the installer wizard${CL}"
   if [[ "$PWSERVER_PASSWORD_GENERATED" == "1" ]]; then
     echo -e "${INFO}${YW} pwserver password:${CL} ${BGN}generated: ${PWSERVER_PASSWORD}${CL}"

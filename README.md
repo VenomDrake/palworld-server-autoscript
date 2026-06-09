@@ -15,6 +15,7 @@ In particolare:
 - installa dipendenze LinuxGSM/SteamCMD per Ubuntu 22.04, incluse librerie i386 richieste;
 - tenta l'installazione di `steamcmd` dai repository Ubuntu, se disponibile;
 - crea l'utente dedicato `pwserver`;
+- chiede il nome pubblico del server Palworld con default `Palworld Server`;
 - scarica LinuxGSM con `curl -Lo linuxgsm.sh https://linuxgsm.sh` ed esegue `bash linuxgsm.sh pwserver`;
 - installa Palworld Dedicated Server tramite LinuxGSM con `./pwserver auto-install`, con fallback a `./pwserver install` non interattivo;
 - crea e abilita il servizio systemd `pwserver.service`;
@@ -72,6 +73,16 @@ Note:
 - `27016/udp` non è una porta predefinita dell'attuale configurazione LinuxGSM per `pwserver`; usala solo se modifichi la `queryport`/`steamport` in LinuxGSM.
 - `25575/tcp` è da aprire solo se abiliti RCON nella configurazione Palworld.
 - Dopo l'installazione, verifica sempre le porte reali con `./pwserver details`.
+
+## Nome pubblico del server
+
+Durante il wizard lo script mostra il prompt **Palworld Server Name** con default `Palworld Server`. Il valore scelto viene scritto nell'override locale LinuxGSM:
+
+```text
+/home/pwserver/lgsm/config-lgsm/pwserver/pwserver.cfg
+```
+
+In questo modo i parametri di avvio usano `-servername='<nome scelto>'` invece del default LinuxGSM.
 
 ## Password e accessi
 
